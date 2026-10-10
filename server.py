@@ -7,13 +7,13 @@ POINTS=[10,6,3,1]
 rooms={}
 class Room:
  def __init__(self,code):
-  self.code=code;self.clients={};self.phase='lobby';self.event=0;self.stage=1;self.elapsed=0;self.scores=[0]*4;self.history=[];self.players=[];self.cpu_ids=[];self.entities={};self.inputs={};self.announced=0;self.round=1;self.duel=[];self.tug_games=[];self.tug_progress=0;self.race_times={i:[] for i in range(4)};self.result_order=[];self.end_time=0;self.last_action={};self.items=[];self.obstacles=[];self.stage_seed=0;self.fx=[];self.race_finish={}
+  self.code=code;self.clients={};self.phase='lobby';self.event=0;self.stage=1;self.elapsed=0;self.scores=[0]*4;self.history=[];self.players=[];self.cpu_ids=[];self.entities={};self.inputs={};self.announced=0;self.round=1;self.duel=[];self.tug_games=[];self.tug_progress=0;self.race_times={i:[] for i in range(4)};self.result_order=[];self.end_time=0;self.last_action={};self.items=[];self.obstacles=[];self.stage_seed=0;self.fx=[];self.race_finish={};self.projectiles=[];self.race_hits={};self.current_misses={}
  def state(self):
   return dict(type='state',code=self.code,phase=self.phase,event=self.event,stage=self.stage,elapsed=round(self.elapsed,1),round=self.round,
    peers=[{'slot':i,'cat':p['cat'],'ready':p['ready'],'connected':not p['ws'].closed} for i,p in self.clients.items()],
    names=NAMES,entities=self.entities,scores=(self.scores if self.phase=='final' else None),history=(self.history if self.phase=='final' else []),
    order=self.result_order if self.phase in ('results','final') else [],duel=self.duel,tug_games=self.tug_games,tug_progress=self.tug_progress,
-   messages=self.announced,items=self.items,obstacles=self.obstacles,fx=self.fx[-12:],race_times=self.race_times if self.phase=='results' and self.event==0 else None)
+   messages=self.announced,items=self.items,obstacles=self.obstacles,fx=self.fx[-12:],projectiles=self.projectiles,race_hits=self.race_hits,race_times=self.race_times if self.phase=='results' and self.event==0 else None)
  async def broadcast(self,obj=None):
   if obj is None:obj=self.state()
   raw=json.dumps(obj,ensure_ascii=False)
@@ -24,10 +24,10 @@ class Room:
   self.elapsed=0;self.inputs={};self.entities={};self.last_action={};self.fx=[];self.race_finish={}
   for i in range(4):
    self.entities[i]=dict(id=i,x=155+i*205,y=200+(i%2)*115,hp=100,pts=0,ko=0,outs=0,charge=75,stun=0,inv=0,face=1,respawn=0,progress=0,energy=0,notes=0,skate=0,score=0,weapon=None,z=0,jump=0,shield=0,special=0)
-  self.items=[];self.obstacles=[]
+  self.items=[];self.obstacles=[];self.projectiles=[];self.race_hits={}
   if self.event==0:
    for i in range(4):self.entities[i]['y']=i
-   rng=random.Random(self.code+'-'+str(self.stage));self.obstacles=[{'x':x,'lane':rng.randrange(4),'kind':rng.choice(['box','cone','banana','hurdle'])} for x in range(85,750,48 if self.stage==5 else 110)]
+   rng=random.Random(self.code+'-'+str(self.stage));self.obstacles=[{'x':x,'lane':rng.randrange(4),'kind':rng.choice(['box','cone','banana','hurdle','puddle'])} for x in range(85,750,53 if self.stage==5 else 102)]
    if self.stage<5:self.items=[{'x':rng.randrange(165,440),'lane':rng.randrange(4),'kind':'skate','taken':False}]
   if self.event==1:
    rng=random.Random(self.code+'battle');self.items=[{'x':rng.randrange(250,750),'y':rng.randrange(165,405),'kind':rng.choice(['fish','bomb']),'taken':False} for _ in range(7)]
@@ -54,6 +54,18 @@ class Room:
    self.inputs[cat]={'x':max(-1,min(1,float(detail.get('x',0)))),'y':max(-1,min(1,float(detail.get('y',0))))}
   if self.event==0:
    if kind=='dash' and e['energy']>=20:e['progress']+=13;e['energy']-=20
+   if kind=='punch' and e['stun']<=0:
+    now=time.monotonic()
+    if now-self.last_action.get((cat,'race_punch'),0)>=.34:
+     self.last_action[(cat,'race_punch')]=now; e['face']=1
+     for target in self.entities.values():
+      if target['id']!=cat and target['stun']<=0 and target['shield']<=0 and 0<target['progress']-e['progress']<45 and abs(target['y']-e['y'])<.65:
+       target['stun']=.55;target['hp']=max(0,target['hp']-8);self.fx.append({'t':round(self.elapsed,2),'id':target['id'],'kind':'hit'});break
+   if kind=='throw' and e['weapon']=='pan':
+    e['weapon']=None
+    targets=[q for q in self.entities.values() if q['id']!=cat and abs(q['y']-e['y'])<1.2 and 0<q['progress']-e['progress']<135]
+    if targets:
+     target=min(targets,key=lambda q:q['progress']-e['progress']);target['stun']=1.05;target['hp']=max(0,target['hp']-17);self.fx.append({'t':round(self.elapsed,2),'id':target['id'],'kind':'throw'})
    if kind=='jump' and e['jump']<=0:e['jump']=.72;e['energy']=min(100,e['energy']+5)
   elif self.event==1:
    if kind in ('punch','special') and e['respawn']<=0 and e['stun']<=0:
@@ -66,11 +78,11 @@ class Room:
      if cat==3:e['inv']=3.2;e['shield']=3.2;return
     reach=(185 if cat in (1,2) else 165) if kind=='special' else 76
     damage=([35,42,29,0][cat] if kind=='special' else 13)
-    near=[t for t in self.entities.values() if t['id']!=cat and t['respawn']<=0 and t['inv']<=0 and abs(t['x']-e['x'])<reach and abs(t['y']-e['y'])<75]
+    near=[t for t in self.entities.values() if t['id']!=cat and t['respawn']<=0 and t['inv']<=0 and (t['x']-e['x'])*e['face']>-18 and (t['x']-e['x'])*e['face']<reach and abs(t['y']-e['y'])<75]
     if near:
      target=min(near,key=lambda t:abs(t['x']-e['x']))
      target['hp']-=damage;target['stun']=.32;target['inv']=.45
-     target['x']+= (1 if target['x']>=e['x'] else -1)*(([165,210,175,0][cat]) if kind=='special' else 34);self.fx.append({'t':round(self.elapsed,1),'id':target['id'],'kind':'hit'})
+     target['x']+= e['face']*(([170,235,195,0][cat]) if kind=='special' else 34);self.fx.append({'t':round(self.elapsed,1),'id':target['id'],'kind':'hit'})
      if target['hp']<=0:target['pts']-=3;target['ko']+=1;target['respawn']=1.5;target['hp']=100
      elif target['x']<35 or target['x']>965:
       e['pts']+=3;target['outs']+=1;target['respawn']=1.5;target['hp']=100
@@ -85,14 +97,16 @@ class Room:
    if kind=='mash':
     now=time.monotonic();key=(cat,'mash')
     if now-self.last_action.get(key,0)>=.065:
-     e['energy']=min(100,e['energy']+4.5);self.last_action[key]=now
+     e['energy']=min(100,e['energy']+4.4);self.last_action[key]=now
    if kind=='rhythm':
     now=time.monotonic();key=(cat,'rhythm')
     if now-self.last_action.get(key,0)<.15:return
     self.last_action[key]=now
     beat=(self.elapsed-1.5)/.9
-    if abs(beat-round(beat))<.19:e['notes']=min(100,e['notes']+15)
-    else:e['notes']=max(0,e['notes']-8)
+    delta=abs(beat-round(beat))*.9
+    if delta<=.11:e['notes']=min(100,e['notes']+16);self.fx.append({'t':round(self.elapsed,2),'id':cat,'kind':'perfect'})
+    elif delta<=.21:e['notes']=min(100,e['notes']+10);self.fx.append({'t':round(self.elapsed,2),'id':cat,'kind':'good'})
+    else:e['notes']=max(0,e['notes']-11);self.fx.append({'t':round(self.elapsed,2),'id':cat,'kind':'miss'})
  async def tick(self,dt):
   if self.phase!='play':return
   self.elapsed+=dt
@@ -103,7 +117,7 @@ class Room:
     inp=self.inputs.get(i,{});
     if i in self.cpu_ids:
      speed=[40,33,47,37][i]*(random.random()*.16+.94)
-     lane=int((i+self.stage)%4)
+     lane=int((i+self.stage)%4);e['y']=lane
     else:
      speed=max(0,inp.get('x',0))*[45,35,51,41][i]
      if abs(inp.get('y',0))>.35:e['y']=max(0,min(3,round((e['y'] if e['y']<=3 else i)+inp['y']*dt*3)))
@@ -138,7 +152,7 @@ class Room:
     inp=self.inputs.get(i,{'x':random.uniform(-1,1),'y':random.uniform(-1,1)}) if i not in self.cpu_ids else {'x':random.uniform(-.8,.8),'y':random.uniform(-.8,.8)}
     if e['stun']<=0:
      e['x']+=inp.get('x',0)*[130,100,150,115][i]*dt;e['y']+=inp.get('y',0)*85*dt
-    e['y']=max(110,min(460,e['y']))
+    e['y']=max(110,min(460,e['y']));e['face']=1 if inp.get('x',0)>=0 else -1
     for item in self.items:
      if not item['taken'] and abs(e['x']-item['x'])<46 and abs(e['y']-item['y'])<46:
       item['taken']=True
@@ -223,5 +237,6 @@ async def ticker(app):
    await room.broadcast()
 async def startapp(app):app['ticker']=asyncio.create_task(ticker(app))
 async def stopapp(app):app['ticker'].cancel()
-app=web.Application();app.router.add_get('/ws',websocket);app.router.add_static('/assets/',BASE/'static'/'assets',show_index=False);app.router.add_get('/',lambda r:web.FileResponse(BASE/'static'/'index.html'));app.on_startup.append(startapp);app.on_cleanup.append(stopapp)
+async def version(request):return web.json_response({'version':'0.4','name':'ニャンコ大運動会 オンライン移植進行版'})
+app=web.Application();app.router.add_get('/version',version);app.router.add_get('/ws',websocket);app.router.add_static('/assets/',BASE/'static'/'assets',show_index=False);app.router.add_get('/',lambda r:web.FileResponse(BASE/'static'/'index.html'));app.on_startup.append(startapp);app.on_cleanup.append(stopapp)
 if __name__=='__main__':web.run_app(app,host='0.0.0.0',port=int(os.environ.get('PORT','8080')))
