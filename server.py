@@ -152,7 +152,7 @@ class Room:
     inp=self.inputs.get(i,{'x':random.uniform(-1,1),'y':random.uniform(-1,1)}) if i not in self.cpu_ids else {'x':random.uniform(-.8,.8),'y':random.uniform(-.8,.8)}
     if e['stun']<=0:
      e['x']+=inp.get('x',0)*[130,100,150,115][i]*dt;e['y']+=inp.get('y',0)*85*dt
-    e['y']=max(110,min(460,e['y']));e['face']=1 if inp.get('x',0)>=0 else -1
+    e['y']=max(110,min(460,e['y']));e['face']=1 if inp.get('x',0)>0.1 else (-1 if inp.get('x',0)<-0.1 else e['face'])
     for item in self.items:
      if not item['taken'] and abs(e['x']-item['x'])<46 and abs(e['y']-item['y'])<46:
       item['taken']=True
