@@ -7,13 +7,13 @@ POINTS=[10,6,3,1]
 rooms={}
 class Room:
  def __init__(self,code):
-  self.code=code;self.clients={};self.phase='lobby';self.event=0;self.stage=1;self.elapsed=0;self.scores=[0]*4;self.history=[];self.players=[];self.cpu_ids=[];self.entities={};self.inputs={};self.announced=0;self.round=1;self.duel=[];self.tug_games=[];self.tug_progress=0;self.cpu_tug_winner=None;self.cpu_tug_loser=None;self.race_times={i:[] for i in range(4)};self.result_order=[];self.end_time=0;self.last_action={};self.items=[];self.obstacles=[];self.stage_seed=0;self.fx=[];self.race_finish={};self.projectiles=[];self.race_hits={};self.current_misses={};self.race_starts={};self.race_attacks={};self.tug_notes=[];self.tug_judged={};self.tug_last_hit={};self.tug_combo={}
+  self.code=code;self.clients={};self.phase='lobby';self.event=0;self.stage=1;self.elapsed=0;self.scores=[0]*4;self.history=[];self.players=[];self.cpu_ids=[];self.entities={};self.inputs={};self.announced=0;self.round=1;self.duel=[];self.tug_games=[];self.tug_progress=0;self.cpu_tug_winner=None;self.cpu_tug_loser=None;self.race_times={i:[] for i in range(4)};self.result_order=[];self.end_time=0;self.last_action={};self.items=[];self.obstacles=[];self.stage_seed=0;self.fx=[];self.race_finish={};self.projectiles=[];self.race_hits={};self.current_misses={};self.race_starts={};self.race_attacks={};self.tug_notes=[];self.tug_judged={};self.tug_last_hit={};self.tug_combo={};self.tug_semi_margin=0;self.tug_cpu_margin=0;self.last_battle_items=0;self.mash_total={};self.bombs=[];self.stage_transition=0
  def state(self):
   return dict(type='state',code=self.code,phase=self.phase,event=self.event,stage=self.stage,elapsed=round(self.elapsed,1),round=self.round,
    peers=[{'slot':i,'cat':p['cat'],'ready':p['ready'],'connected':not p['ws'].closed} for i,p in self.clients.items()],
    names=NAMES,entities=self.entities,scores=(self.scores if self.phase=='final' else None),history=(self.history if self.phase=='final' else []),
    order=self.result_order if self.phase in ('results','final') else [],duel=self.duel,tug_games=self.tug_games,tug_progress=self.tug_progress,
-   messages=self.announced,items=self.items,obstacles=self.obstacles,fx=self.fx[-12:],projectiles=self.projectiles,race_hits=self.race_hits,race_attacks=self.race_attacks,race_times=self.race_times if self.phase=='results' and self.event==0 else None,tug_notes=(self.tug_notes if self.phase=='play' and self.event==2 else []),tug_combo=self.tug_combo)
+   messages=self.announced,items=self.items,obstacles=self.obstacles,fx=self.fx[-12:],projectiles=self.projectiles,bombs=self.bombs,stage_transition=self.stage_transition,race_hits=self.race_hits,race_attacks=self.race_attacks,race_times=self.race_times if self.phase=='results' and self.event==0 else None,tug_notes=(self.tug_notes if self.phase=='play' and self.event==2 else []),tug_combo=self.tug_combo)
  async def broadcast(self,obj=None):
   if obj is None:obj=self.state()
   raw=json.dumps(obj,ensure_ascii=False)
@@ -30,7 +30,7 @@ class Room:
   self.tug_notes=notes
   self.tug_judged={i:set() for i in self.duel}
   self.tug_last_hit={}
-  self.tug_combo={i:0 for i in self.duel}
+  self.tug_combo={i:0 for i in self.duel};self.mash_total={i:0 for i in self.duel}
  def in_arena(self,e):
   # Coordinates in the 1000x560 game screen. Lower/upper trapezoid boundaries follow the visible platform.
   y=e['y']+75
@@ -82,15 +82,16 @@ class Room:
  def reset_entities(self):
   self.elapsed=0;self.inputs={};self.entities={};self.last_action={};self.fx=[];self.race_finish={}
   for i in range(4):
-   self.entities[i]=dict(id=i,x=350+(i%2)*300,y=165+(i//2)*135,hp=100,pts=0,ko=0,outs=0,charge=75,stun=0,inv=0,face=1,respawn=0,progress=0,energy=0,notes=0,skate=0,score=0,weapon=None,z=0,jump=0,shield=0,race_inv=0,banana_slow=0,race_down=0,special=0,vx=0,vy=0,hit_by=None)
-  self.items=[];self.obstacles=[];self.projectiles=[];self.race_hits={};self.race_attacks={}
+   self.entities[i]=dict(id=i,x=350+(i%2)*300,y=165+(i//2)*135,hp=100,pts=0,ko=0,outs=0,charge=75,stun=0,inv=0,face=1,respawn=0,progress=0,energy=0,notes=0,skate=0,score=0,weapon=None,z=0,jump=0,shield=0,race_inv=0,banana_slow=0,race_down=0,special=0,vx=0,vy=0,hit_by=None,carrying=None,carried_by=None,throw_flight=0)
+  self.items=[];self.obstacles=[];self.projectiles=[];self.bombs=[];self.stage_transition=0;self.race_hits={};self.race_attacks={}
   if self.event==0:
    for i in range(4):self.entities[i]['y']=i
    rng=random.Random(self.code+'-'+str(self.stage));self.obstacles=[{'x':x,'lane':rng.randrange(4),'kind':rng.choice(['box','cone','banana','hurdle','puddle'])} for x in range(85,750,43 if self.stage==5 else 95)]
    if self.stage<5:self.items=[{'x':rng.randrange(165,440),'lane':rng.randrange(4),'kind':'skate','taken':False}]
-   for j in range(3):
-    self.items.append({'x':rng.randrange(115,670),'lane':rng.randrange(4),'kind':rng.choice(['pan','fish']),'taken':False})
+   for j in range(8 if self.stage==5 else 6):
+    self.items.append({'x':rng.randrange(100,710),'lane':rng.randrange(4),'kind':rng.choice(['pan','fish']),'taken':False})
   if self.event==1:
+   self.last_battle_items=0
    rng=random.Random(self.code+'battle');self.items=[{'x':rng.randrange(250,750),'y':rng.randrange(165,405),'kind':rng.choice(['fish','bomb']),'taken':False} for _ in range(7)]
  def start(self):
   self.players=[p['cat'] for p in self.clients.values() if p['cat'] is not None]
@@ -101,7 +102,7 @@ class Room:
   if self.event>=2:self.phase='final';self.result_order=sorted(range(4),key=lambda i:(-self.scores[i],i));return
   self.event+=1;self.stage=1;self.round=1;self.reset_entities();self.phase='play'
   if self.event==2:
-   a,b=[p['cat'] for p in self.clients.values()];self.duel=[a,b];self.tug_games=[];self.tug_progress=0;self.cpu_tug_winner=None;self.cpu_tug_loser=None;self.make_tug_chart()
+   a,b=[p['cat'] for p in self.clients.values()];self.duel=[a,b];self.tug_games=[];self.tug_progress=0;self.cpu_tug_winner=None;self.cpu_tug_loser=None;self.tug_semi_margin=0;self.tug_cpu_margin=0;self.make_tug_chart()
  def finish_event(self,order):
   self.result_order=order[:]
   for i,cat in enumerate(order):self.scores[cat]+=POINTS[i]
@@ -114,6 +115,25 @@ class Room:
    if not isinstance(detail,dict):return
    self.inputs[cat]={'x':max(-1,min(1,float(detail.get('x',0)))),'y':max(-1,min(1,float(detail.get('y',0))))}
   if self.event==0:
+   if kind=='grab' and e['race_down']<=0 and e['stun']<=0:
+    if e.get('carrying') is not None:
+     target=self.entities[e['carrying']]
+     e['carrying']=None
+     target['carried_by']=None
+     target['throw_flight']=.72
+     target['stun']=1.10
+     target['race_inv']=1.5
+     target['progress']=max(0,e['progress']+e['face']*48)
+     target['y']=e['y']
+     target['hp']=max(0,target['hp']-19)
+     self.fx.append({'t':round(self.elapsed,2),'id':cat,'kind':'grab-throw','target':target['id']})
+    else:
+     candidates=[t for t in self.entities.values() if t['id']!=cat and t.get('carried_by') is None and
+          (t['race_down']>0 or t['stun']>.2) and abs(t['progress']-e['progress'])<36 and abs(t['y']-e['y'])<.65]
+     if candidates:
+      target=min(candidates,key=lambda t:abs(t['progress']-e['progress']))
+      e['carrying']=target['id'];target['carried_by']=cat
+      self.fx.append({'t':round(self.elapsed,2),'id':cat,'kind':'grab','target':target['id']})
    if kind=='dash' and e['race_down']<=0 and e['energy']>=20 and e['stun']<=0:e['progress']+=22;e['energy']-=20;e['shield']=max(e['shield'],.25);self.fx.append({'t':round(self.elapsed,2),'id':cat,'kind':'dash'})
    if kind=='punch' and e['race_down']<=0 and e['stun']<=0:
     now=time.monotonic()
@@ -124,23 +144,20 @@ class Room:
        target['stun']=.48;target['race_inv']=.52;target['progress']=max(0,target['progress']+e['face']*11);target['hp']=max(0,target['hp']-8);self.fx.append({'t':round(self.elapsed,2),'id':target['id'],'kind':'hit'});break
    if kind=='throw' and e['race_down']<=0 and e['weapon']=='pan':
     e['weapon']=None;self.projectiles.append({'owner':cat,'x':round(e['progress'],1),'y':round(e['y'],2),'vx':390*e['face'],'life':.9,'kind':'pan'});self.fx.append({'t':round(self.elapsed,2),'id':cat,'kind':'throw'})
-   if kind=='jump' and e['race_down']<=0 and e['jump']<=0 and e['stun']<=0:e['jump']=.90;e['energy']=min(100,e['energy']+5);self.fx.append({'t':round(self.elapsed,2),'id':cat,'kind':'jump'})
+   if kind=='jump' and e['race_down']<=0 and e['jump']<=0 and e['stun']<=0 and e.get('carried_by') is None:e['jump']=.90;e['energy']=min(100,e['energy']+5);self.fx.append({'t':round(self.elapsed,2),'id':cat,'kind':'jump'})
    if kind=='dash' and e['energy']<20 and e['skate']<=0:pass
   elif self.event==1:
    if kind in ('punch','special'):self.battle_attack(cat,kind=='special')
    if kind=='jump':e['jump']=.65;e['inv']=max(e['inv'],.22)
    if kind=='throw' and e['weapon']=='bomb':
-    e['weapon']=None;self.fx.append({'t':round(self.elapsed,1),'id':cat,'kind':'bomb'})
-    for target in self.entities.values():
-     if target['id']!=cat and target['respawn']<=0 and abs(target['x']-e['x'])<215 and abs(target['y']-e['y'])<115:
-      target['hp']-=26;target['vx']=(1 if target['x']>=e['x'] else -1)*570;target['vy']=(1 if target['y']>=e['y'] else -1)*160;target['hit_by']=cat;target['stun']=.4;target['inv']=.6
-      if target['hp']<=0:self.battle_drop(target['id'],cat,True)
-      # Knockback is now resolved each server tick at the actual arena edge.
+    e['weapon']=None
+    self.bombs.append({'owner':cat,'x':e['x']+e['face']*38,'y':e['y'],'vx':e['face']*450,'fuse':1.05,'height':48,'vz':240,'bounce':0})
+    self.fx.append({'t':round(self.elapsed,2),'id':cat,'kind':'bomb-throw'})
   elif self.event==2 and cat in self.duel:
    if kind=='mash':
     now=time.monotonic();key=(cat,'mash')
     if now-self.last_action.get(key,0)>=.065:
-     e['energy']=min(100,e['energy']+4.4);self.last_action[key]=now
+     e['energy']=min(100,e['energy']+4.05);self.last_action[key]=now;self.mash_total[cat]=self.mash_total.get(cat,0)+1
    if kind=='rhythm':
     now=time.monotonic();key=(cat,'rhythm')
     if now-self.last_action.get(key,0)<.15:return
@@ -165,7 +182,11 @@ class Room:
    self.race_attacks={k:t for k,t in self.race_attacks.items() if self.elapsed-t<.5}
    for i,e in self.entities.items():
     if i in self.race_finish:continue
+    e['throw_flight']=max(0,e.get('throw_flight',0)-dt)
     e['jump']=max(0,e['jump']-dt);e['shield']=max(0,e['shield']-dt);e['stun']=max(0,e['stun']-dt);e['race_inv']=max(0,e['race_inv']-dt);e['banana_slow']=max(0,e['banana_slow']-dt)
+    if e.get('carried_by') is not None:
+     carrier=self.entities[e['carried_by']]
+     e['progress']=carrier['progress']+carrier['face']*13;e['y']=carrier['y'];continue
     if e['race_down']>0:
      e['race_down']=max(0,e['race_down']-dt)
      if e['race_down']==0:
@@ -203,6 +224,8 @@ class Room:
     if e['skate']>0:speed*=1.85;e['skate']=max(0,e['skate']-dt)
     if e['stun']>0:speed*=.28
     prev=e['progress'];e['progress']+=speed*dt
+    if e.get('carrying') is not None:
+     target=self.entities[e['carrying']];target['progress']=e['progress']+e['face']*13;target['y']=e['y']
     for ob in self.obstacles:
      if prev<ob['x']<=e['progress'] and abs(ob['lane']-e['y'])<.40 and e['jump']<.12 and e['skate']<=0 and e['shield']<=0 and e['race_inv']<=0:
       hazard=ob['kind'];e['race_inv']=1.3
@@ -222,6 +245,8 @@ class Room:
       self.fx.append({'t':round(self.elapsed,1),'id':i,'kind':item['kind']})
     if e['hp']<=0 and e['race_down']<=0:
      e['race_down']=2.4;e['stun']=2.4;e['skate']=0;e['weapon']=None
+     if e.get('carrying') is not None:
+      self.entities[e['carrying']]['carried_by']=None;e['carrying']=None
      self.fx.append({'t':round(self.elapsed,2),'id':i,'kind':'down'})
     if e['progress']>=760:self.race_finish[i]=self.elapsed
     e['energy']=min(100,e['energy']+dt*5)
@@ -241,6 +266,32 @@ class Room:
     else:
      self.stage+=1;self.reset_entities()
   elif self.event==1:
+   # Replenish fish/bomb pickups during the 60-second brawl; both clients share positions.
+   if self.elapsed-self.last_battle_items>=11:
+    self.last_battle_items=self.elapsed
+    active=sum(1 for item in self.items if not item['taken'])
+    if active<5:
+     rng=random.Random(f'{self.code}:battle:{int(self.elapsed//11)}')
+     for _ in range(min(3,7-active)):
+      self.items.append({'x':rng.randrange(300,701),'y':rng.randrange(205,365),'kind':rng.choice(['fish','bomb']),'taken':False})
+   for bomb in list(self.bombs):
+    bomb['fuse']-=dt;bomb['x']+=bomb['vx']*dt;bomb['height']+=bomb['vz']*dt
+    bomb['vz']-=950*dt;bomb['vx']*=math.exp(-1.4*dt)
+    if bomb['height']<0:
+     bomb['height']=0;bomb['vz']=abs(bomb['vz'])*.3;bomb['bounce']+=1
+    if bomb['fuse']<=0:
+     self.fx.append({'t':round(self.elapsed,2),'id':bomb['owner'],'kind':'explosion','x':round(bomb['x'],2),'y':round(bomb['y'],2)})
+     for target in list(self.entities.values()):
+      if target['id']==bomb['owner'] or target['respawn']>0 or target['shield']>0:continue
+      distance=math.hypot((target['x']-bomb['x']), (target['y']-bomb['y'])*1.15)
+      if distance>160:continue
+      power=max(.28,1-distance/190)
+      target['hp']-=32*power
+      target['vx']=(1 if target['x']>=bomb['x'] else -1)*650*power
+      target['vy']=(1 if target['y']>=bomb['y'] else -1)*290*power
+      target['stun']=.42;target['inv']=.45;target['hit_by']=bomb['owner']
+      if target['hp']<=0:self.battle_drop(target['id'],bomb['owner'],True)
+     self.bombs.remove(bomb)
    for i,e in self.entities.items():
     e['charge']=min(100,e['charge']+dt*20);e['special']=max(0,e['special']-dt);e['shield']=max(0,e['shield']-dt);e['jump']=max(0,e['jump']-dt)
     e['stun']=max(0,e['stun']-dt);e['inv']=max(0,e['inv']-dt)
@@ -286,7 +337,7 @@ class Room:
    # Duel bracket: head-to-head players, then winner vs CPU; other CPU for 3/4
    a,b=self.duel
    for i,e in self.entities.items():
-    if i in self.cpu_ids:e['energy']=72+10*math.sin(self.elapsed/3+i)
+    if i in self.cpu_ids:e['energy']=[73,93,100,72][i]+7*math.sin(self.elapsed/3+i)
     else:e['energy']=max(0,e['energy']-dt*13);e['notes']=max(0,e['notes']-dt*9)
    for cat in self.duel:
     for note in self.tug_notes:
@@ -302,10 +353,13 @@ class Room:
     cpuA,cpuB=self.cpu_ids
     # CPU 3rd/4th classification
     if self.round==1:
-     self.tug_games=[winner,loser]
-     # The other semi is CPU vs CPU and is resolved server-side.
+     self.tug_games=[winner,loser];self.tug_semi_margin=abs(self.tug_progress)
+     # Second semifinal: simulate CPU vs CPU using character strength and fixed match seed.
      cpu_strength=[88,105,110,80]
-     cpuA,cpuB=sorted(self.cpu_ids,key=lambda i:-cpu_strength[i]);self.cpu_tug_winner=cpuA;self.cpu_tug_loser=cpuB
+     rng=random.Random(self.code+':cpu-semi')
+     cpuA,cpuB=sorted(self.cpu_ids,key=lambda i:-(cpu_strength[i]+rng.uniform(-8,8)))
+     self.cpu_tug_winner=cpuA;self.cpu_tug_loser=cpuB
+     self.tug_cpu_margin=abs(cpu_strength[cpuA]-cpu_strength[cpuB])*2+12
      self.duel=[winner,cpuA];self.round=2;self.tug_progress=0;self.elapsed=0;self.make_tug_chart()
      for e in self.entities.values():e['energy']=0;e['notes']=0
      self.fx.append({'t':0,'id':winner,'kind':'semi-win'})
@@ -313,8 +367,15 @@ class Room:
      win2=self.duel[0] if self.tug_progress>=0 else self.duel[1]
      lose2=self.duel[1] if win2==self.duel[0] else self.duel[0]
      remaining=[i for i in range(4) if i not in (win2,lose2)]
-     # Third-place rank is decided by semifinal performance, tie by character power.
-     self.finish_event([win2,lose2]+remaining)
+     # Bronze match between semifinal losers, estimated from their semifinal performance.
+     semifinal_loser=self.tug_games[1]
+     bronze_opp=self.cpu_tug_loser
+     cpu_strength=[88,105,110,80]
+     rng=random.Random(self.code+':bronze')
+     p1=cpu_strength[semifinal_loser]+rng.uniform(-12,12)+(12 if self.tug_semi_margin<35 else 0)
+     p2=cpu_strength[bronze_opp]+rng.uniform(-12,12)
+     bronze=[semifinal_loser,bronze_opp] if p1>=p2 else [bronze_opp,semifinal_loser]
+     self.finish_event([win2,lose2]+bronze)
 async def websocket(request):
  ws=web.WebSocketResponse(heartbeat=20);await ws.prepare(request)
  slot=None;room=None
@@ -359,13 +420,18 @@ async def websocket(request):
    else:await room.broadcast()
  return ws
 async def ticker(app):
+ # Game physics at 20Hz, network snapshots at 10Hz. This avoids sending
+ # every single physics tick over two mobile WebSocket connections.
+ broadcast_counter=0
  while True:
   await asyncio.sleep(.05)
+  broadcast_counter=(broadcast_counter+1)%2
   for room in list(rooms.values()):
    await room.tick(.05)
-   await room.broadcast()
+   if True:
+    await room.broadcast()
 async def startapp(app):app['ticker']=asyncio.create_task(ticker(app))
 async def stopapp(app):app['ticker'].cancel()
-async def version(request):return web.json_response({'version':'0.12','name':'ニャンコ大運動会・レース障害物と飛び道具同期改善'})
+async def version(request):return web.json_response({'version':'0.18','name':'ニャンコ大運動会・原作演出・爆弾物理・同期強化'})
 app=web.Application();app.router.add_get('/version',version);app.router.add_get('/ws',websocket);app.router.add_static('/assets/',BASE/'static'/'assets',show_index=False);app.router.add_get('/',lambda r:web.FileResponse(BASE/'static'/'index.html'));app.on_startup.append(startapp);app.on_cleanup.append(stopapp)
 if __name__=='__main__':web.run_app(app,host='0.0.0.0',port=int(os.environ.get('PORT','8080')))
