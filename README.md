@@ -1,15 +1,31 @@
-# ニャンコ大運動会 ONLINE v0.6 — Render更新版
+# ニャンコ大運動会 オンライン v0.11 開発版
 
-既存の2人用オンライン版を強化する実装です。これは**1人用Ver.1.7の完全移植ではありません**。独立したサーバー側物理・判定エンジンで動いています。
+## 今回の実装
+- 格闘の必殺技・パンチ命中時にキャラを座標ジャンプさせず、サーバー側で速度(vx/vy)を保持。毎フレーム減速する吹っ飛びへ変更。
+- 張り手・旋風脚の吹っ飛び速度調整。台の四辺を足元が越えた瞬間に場外判定、直前に吹っ飛ばしたキャラへ+3点。HPゼロはKOで-3点。
+- フロント側も顔の向き・吹っ飛び軌跡・攻撃/KO/場外エフェクトを同期。
+- 既存の5区間レース・サーバー共通リズム譜面・ロビー・3競技進行は維持。
 
-## 今回の変更
-- レース: 5区間、最終区間の障害物ラッシュ、最終区間スケボーなし、魚/フライパンの出現・取得、投げて妨害。画面の3番ボタンは武器なしならダッシュ、武器ありなら投げる。
-- 格闘: CPUが相手を追跡し、張り手・旋風脚などの必殺技も使用、HP/場外/KOのサーバー判定を継続。
-- 綱引き: 2人の連打・リズム判定同期を継続（トーナメントの詳細は原作と異なります）。
-- 元のキャラクターの走行・攻撃等の画像と音声、6桁ロビー、3競技連続進行を維持。
+## 現状
+まだ1人用と同等のゲーム性の完全移植ではありません。Renderへの更新は不要です。
+サーバー起動: `pip install -r requirements.txt` → `python server.py`
 
-## 公開
-ZIPを解凍し、中身を既存のGitHubリポジトリのルートへ更新してください。`server.py`, `static/index.html`, `static/assets` の構造を崩さないでください。Render: Build `pip install -r requirements.txt` / Start `python server.py`。
+## v0.12 race collision / items improvements
+- Hazard-specific server effects: banana slipping, puddle slowing, box/hurdle impact.
+- Short race collision invulnerability prevents repeated edge-hit damage.
+- Pan projectiles no longer cause immediate duplicate damage before projectile travels.
+- CPU approaches shared beneficial items; collision effect messages are displayed over racers.
+- Race HUD now shows HP, skateboard remaining time and weapon state.
+- Existing online lobby, three-sport tournament and battle remain intact.
 
-## 移植済みではない主な要素
-原作の2.5Dコースカメラ、全武器・細かい衝突判定、実ゲームと同じ格闘AIと高度な必殺技、綱引きの正式な全4人トーナメント・原作と同じ太鼓音ゲータイミング、全イベント演出。完全移植には元のエンジンの権威サーバー化が必要です。
+Development build only. Not equivalent to all features in the original offline race.
+
+
+## Ver.0.13 差分（開発版）
+- レースのパンチ方向を移動方向に連動。後方にも向いて攻撃可能。
+- パンチの一度だけの判定・無敵時間・距離によるノックバック。
+- CPUも近距離で一定間隔のパンチを使用。
+- レースHPゼロでは2.4秒ダウンし、HP65で復帰、2.2秒の無敵。
+- 投げるフライパンは向きに合わせて前後に飛ぶ。
+- 画面でDOWNと復帰状態を表示。
+- 開発版：原作の完全移植ではないためRenderには未アップロード推奨。
