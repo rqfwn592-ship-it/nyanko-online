@@ -6,7 +6,16 @@ function nySE(type){try{window.parent.postMessage({source:'nyanko-sfx',type},'*'
 let remoteInput={x:0,y:0},remoteAttack=false,remoteJump=false,remoteThrow=false;
 window.addEventListener('message',e=>{if(e.data?.source!=='nyanko-net')return;const d=e.data;if(d.type==='input'&&d.input){remoteInput={x:Math.max(-1,Math.min(1,Number(d.input.x)||0)),y:Math.max(-1,Math.min(1,Number(d.input.y)||0))};remoteAttack ||= !!d.input.punch;remoteJump ||= !!d.input.jump;remoteThrow ||= !!d.input.throw;}});
 let netSpectator=false;
-window.addEventListener('message',e=>{const d=e.data;if(d?.source!=='nyanko-net')return;if(d.type==='snapshot'&&d.state){netSpectator=true;const st=d.state;stage=st.stage;time=st.time;stageTime=st.stageTime;cats=st.cats;items=st.items;obstacles=st.obstacles;projectiles=st.projectiles;skyDrops=st.skyDrops;effects=st.effects;playing=st.playing;}});
+window.addEventListener('message',e=>{const d=e.data;if(d?.source!=='nyanko-net')return;if(d.type==='snapshot'&&d.state){netSpectator=true;const st=d.state;stage=st.stage;time=st.time;stageTime=st.stageTime;if(Array.isArray(st.cats)){
+ const old=Array.isArray(cats)?cats:[];
+ cats=st.cats.map((fresh,i)=>{
+  const prior=old.find(c=>c.id===fresh.id);
+  if(prior&&Math.abs(prior.x-fresh.x)<160&&Math.abs(prior.y-fresh.y)<.42){
+    return {...fresh,x:prior.x+(fresh.x-prior.x)*.53,y:prior.y+(fresh.y-prior.y)*.53,z:prior.z+(fresh.z-prior.z)*.53};
+  }
+  return fresh;
+ });
+}items=st.items;obstacles=st.obstacles;projectiles=st.projectiles;skyDrops=st.skyDrops;effects=st.effects;playing=st.playing;}});
 function pushNetworkState(){if(netSpectator)return;window.parent.postMessage({source:'nyanko-net-frame',type:'snapshot',sport:0,state:{stage,time,stageTime,cam,cats,items,obstacles,projectiles,skyDrops,effects,playing}},'*')}
 let netFrameClock=0;
 function update(dt){if(netSpectator)return;netFrameClock+=dt;if(netFrameClock>.075){netFrameClock=0;pushNetworkState()}if(cats[SELECTED]&&!cats[SELECTED].skate)window.parent.postMessage({source:'nyanko-uploaded-audio',type:'skateRideOff'},'*');time+=dt;stageTime+=dt;shake=Math.max(0,shake-dt*12);if(messageUntil<time)toast.textContent='';let p=cats[SELECTED];if(stage<5&&!stageSkateDropped&&cats.some(q=>!q.done)&&Math.max(...cats.filter(q=>!q.done).map(q=>q.x))>course*.33)spawnSkateDrop();let dx=clamp((keys['arrowright']||keys.d?1:0)-(keys['arrowleft']||keys.a?1:0)+stick.x,-1,1),dy=clamp((keys['arrowdown']||keys.s?1:0)-(keys['arrowup']||keys.w?1:0)+stick.y,-1,1);let mag=Math.max(1,Math.hypot(dx,dy));dx/=mag;dy/=mag;const speed=(keys.shift?243:180)*p.speed*(p.boost>0?1.3:1)*(p.skate?3.2:1);
