@@ -63,5 +63,10 @@ async def socket(req):
    else:
     r['started']=False;await emit(r)
  return ws
-app=web.Application();app.router.add_get('/ws',socket);app.router.add_static('/',ROOT,show_index=True)
+app=web.Application()
+app.router.add_get('/ws',socket)
+async def home(req):
+    raise web.HTTPFound('/online.html')
+app.router.add_get('/',home)
+app.router.add_static('/',ROOT,show_index=False)
 if __name__=='__main__':web.run_app(app,host='0.0.0.0',port=int(os.getenv('PORT','10000')))

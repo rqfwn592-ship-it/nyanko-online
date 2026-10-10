@@ -1,0 +1,1 @@
+Renderの既存GitHubリポジトリへこのZIPの全ファイルを配置し、RenderがLiveになったら https://nyanko-online.onrender.com/ を開いてください。/online.html に自動転送します。server.pyのルート設定の修正です。対人戦の全機能を保証するものではありません。
