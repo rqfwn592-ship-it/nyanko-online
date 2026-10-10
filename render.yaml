@@ -1,11 +1,7 @@
 services:
   - type: web
-    name: nyanko-undoukai-online
+    name: nyanko-original-online
     runtime: python
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: python server.py
-    healthCheckPath: /
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.12.7
