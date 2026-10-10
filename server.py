@@ -29,6 +29,8 @@ class Room:
    for i in range(4):self.entities[i]['y']=i
    rng=random.Random(self.code+'-'+str(self.stage));self.obstacles=[{'x':x,'lane':rng.randrange(4),'kind':rng.choice(['box','cone','banana','hurdle','puddle'])} for x in range(85,750,53 if self.stage==5 else 102)]
    if self.stage<5:self.items=[{'x':rng.randrange(165,440),'lane':rng.randrange(4),'kind':'skate','taken':False}]
+   for j in range(3):
+    self.items.append({'x':rng.randrange(115,670),'lane':rng.randrange(4),'kind':rng.choice(['pan','fish']),'taken':False})
   if self.event==1:
    rng=random.Random(self.code+'battle');self.items=[{'x':rng.randrange(250,750),'y':rng.randrange(165,405),'kind':rng.choice(['fish','bomb']),'taken':False} for _ in range(7)]
  def start(self):
@@ -67,6 +69,7 @@ class Room:
     if targets:
      target=min(targets,key=lambda q:q['progress']-e['progress']);target['stun']=1.05;target['hp']=max(0,target['hp']-17);self.fx.append({'t':round(self.elapsed,2),'id':target['id'],'kind':'throw'})
    if kind=='jump' and e['jump']<=0:e['jump']=.72;e['energy']=min(100,e['energy']+5)
+   if kind=='dash' and e['energy']<20 and e['skate']<=0:pass
   elif self.event==1:
    if kind in ('punch','special') and e['respawn']<=0 and e['stun']<=0:
     now=time.monotonic();key=(cat,kind);delay=.24 if kind=='punch' else .55
@@ -131,7 +134,11 @@ class Room:
       e['stun']=.75;e['progress']=ob['x'];e['hp']=max(0,e['hp']-9);self.fx.append({'t':round(self.elapsed,1),'id':i,'kind':'hit'})
     for item in self.items:
      if not item['taken'] and prev<item['x']<=e['progress'] and item['lane']==lane:
-      item['taken']=True;e['skate']=7.0;self.fx.append({'t':round(self.elapsed,1),'id':i,'kind':'skate'})
+      item['taken']=True
+      if item['kind']=='skate':e['skate']=7.0
+      elif item['kind']=='fish':e['hp']=min(100,e['hp']+30)
+      else:e['weapon']='pan'
+      self.fx.append({'t':round(self.elapsed,1),'id':i,'kind':item['kind']})
     if e['progress']>=760:self.race_finish[i]=self.elapsed
     e['energy']=min(100,e['energy']+dt*5)
    if len(self.race_finish)==4 or self.elapsed>=45:
@@ -149,7 +156,16 @@ class Room:
      e['respawn']=max(0,e['respawn']-dt)
      if not e['respawn']:e['x']=220+170*i;e['y']=240+i%2*100;e['inv']=2
      continue
-    inp=self.inputs.get(i,{'x':random.uniform(-1,1),'y':random.uniform(-1,1)}) if i not in self.cpu_ids else {'x':random.uniform(-.8,.8),'y':random.uniform(-.8,.8)}
+    inp=self.inputs.get(i,{'x':0,'y':0})
+    if i in self.cpu_ids:
+     opponents=[t for t in self.entities.values() if t['id']!=i and t['respawn']<=0]
+     if opponents:
+      nearest=min(opponents,key=lambda t:abs(t['x']-e['x'])+abs(t['y']-e['y'])*1.5)
+      inp={'x':max(-1,min(1,(nearest['x']-e['x'])/80)),'y':max(-1,min(1,(nearest['y']-e['y'])/75))}
+     if e['x']<160:inp['x']=max(inp['x'],.7)
+     if e['x']>840:inp['x']=min(inp['x'],-.7)
+     if e['y']<160:inp['y']=max(inp['y'],.7)
+     if e['y']>410:inp['y']=min(inp['y'],-.7)
     if e['stun']<=0:
      e['x']+=inp.get('x',0)*[130,100,150,115][i]*dt;e['y']+=inp.get('y',0)*85*dt
     e['y']=max(110,min(460,e['y']));e['face']=1 if inp.get('x',0)>0.1 else (-1 if inp.get('x',0)<-0.1 else e['face'])
@@ -160,10 +176,16 @@ class Room:
       else:e['weapon']='bomb'
       self.fx.append({'t':round(self.elapsed,1),'id':i,'kind':item['kind']})
     if e['x']<35 or e['x']>965:e['outs']+=1;e['respawn']=1.5;e['hp']=100
-    if i in self.cpu_ids and random.random()<dt*.8:
+    if i in self.cpu_ids and random.random()<dt*2.6:
      target=min([t for t in self.entities.values() if t['id']!=i],key=lambda t:abs(t['x']-e['x'])+abs(t['y']-e['y']))
-     if abs(target['x']-e['x'])<75 and abs(target['y']-e['y'])<80 and target['inv']<=0:
-      target['hp']-=9;target['inv']=.6
+     if abs(target['x']-e['x'])<125 and abs(target['y']-e['y'])<85 and target['inv']<=0:
+      is_special=e['charge']>=100 and random.random()<.38
+      if is_special:
+       e['charge']=0;e['special']=.9;self.fx.append({'t':round(self.elapsed,1),'id':i,'kind':['headbutt','slaps','whirl','feign'][i]})
+       if i==3:e['shield']=3.2;e['inv']=3.2;continue
+      target['hp']-=([31,39,30,0][i] if is_special else 9);target['inv']=.6
+      target['x']+=(1 if target['x']>=e['x'] else -1)*(145 if is_special else 14)
+      self.fx.append({'t':round(self.elapsed,1),'id':target['id'],'kind':'hit'})
       if target['hp']<=0:target['hp']=100;target['pts']-=3;target['ko']+=1;target['respawn']=1.5
    if self.elapsed>=60:self.finish_event(sorted(range(4),key=lambda i:(-self.entities[i]['pts'],self.entities[i]['outs'])))
   else:
@@ -237,6 +259,6 @@ async def ticker(app):
    await room.broadcast()
 async def startapp(app):app['ticker']=asyncio.create_task(ticker(app))
 async def stopapp(app):app['ticker'].cancel()
-async def version(request):return web.json_response({'version':'0.4','name':'ニャンコ大運動会 オンライン移植進行版'})
+async def version(request):return web.json_response({'version':'0.6','name':'ニャンコ大運動会 オンライン・強化試作'})
 app=web.Application();app.router.add_get('/version',version);app.router.add_get('/ws',websocket);app.router.add_static('/assets/',BASE/'static'/'assets',show_index=False);app.router.add_get('/',lambda r:web.FileResponse(BASE/'static'/'index.html'));app.on_startup.append(startapp);app.on_cleanup.append(stopapp)
 if __name__=='__main__':web.run_app(app,host='0.0.0.0',port=int(os.environ.get('PORT','8080')))
