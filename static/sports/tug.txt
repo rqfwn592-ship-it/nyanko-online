@@ -1,0 +1,199 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><title>ニャンコ大運動会 第3競技 綱引き</title><style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#89cce8;color:white;font-family:system-ui,sans-serif;touch-action:none;user-select:none}canvas{position:absolute;inset:0;width:100%;height:100%}#hud{position:absolute;top:8px;left:50%;transform:translateX(-50%);background:#132b46d9;border:2px solid #ffffff55;border-radius:15px;padding:7px 16px;text-align:center;min-width:min(65vw,550px);font-weight:900;text-shadow:1px 2px #071b2a;pointer-events:none}#status{font-size:clamp(10px,1.9vw,19px)}#meter{height:11px;border-radius:9px;background:linear-gradient(to right,#57cfff 0 50%,#fa8973 50% 100%);border:2px solid white;position:relative;margin-top:5px}#needle{position:absolute;left:50%;top:-5px;height:17px;width:5px;background:#ffef61;box-shadow:0 0 6px #fff;border-radius:3px;transform:translateX(-50%)}#bottom{position:absolute;left:0;right:0;bottom:max(5px,env(safe-area-inset-bottom));display:flex;justify-content:space-between;align-items:end;gap:10px;padding:4px max(14px,env(safe-area-inset-right)) 4px max(14px,env(safe-area-inset-left));pointer-events:none}#mash,#rhythm{pointer-events:auto;touch-action:none;border:4px solid #fff7;border-radius:26px;color:#fff;text-shadow:1px 2px #0008;box-shadow:0 7px 0 #0006,0 12px 21px #0003;min-height:clamp(69px,17vh,106px);width:clamp(115px,24vw,210px);font-weight:1000;font-size:clamp(16px,3vw,24px);cursor:pointer}#mash{background:linear-gradient(#ffb647,#fa6a34)}#rhythm{background:linear-gradient(#a58aff,#6746dd)}#rhythm:active,#mash:active{transform:translateY(4px);box-shadow:0 3px 0 #0006}#rhythmPanel{position:absolute;right:max(14px,env(safe-area-inset-right));bottom:clamp(102px,24vh,150px);height:66px;width:min(37vw,350px);border-radius:16px;background:#152744df;border:2px solid #fff8;padding:9px;pointer-events:none}#track{height:31px;position:relative;border-radius:8px;background:#2d496c;overflow:hidden;border:1px solid #ffffff44}#sweet{position:absolute;left:45%;width:10%;top:0;bottom:0;background:#6fdb84a0;border-left:2px solid #d6ffd8;border-right:2px solid #d6ffd8}#dot{position:absolute;left:0;top:5px;width:18px;height:18px;border-radius:50%;background:#ffee77;box-shadow:0 0 12px #ffed6a}#rhythmHint{font-size:11px;text-align:center;margin-top:3px;color:#d9eaff}#feedback{position:absolute;left:50%;top:22%;transform:translateX(-50%);font-size:clamp(17px,4vw,34px);font-weight:1000;text-shadow:2px 3px 2px #20334a;pointer-events:none;opacity:0}#overlay{position:absolute;inset:0;background:#092039b9;display:flex;justify-content:center;align-items:center;padding:20px;z-index:4}#panel{background:linear-gradient(#183e5e,#12273d);border:3px solid #ffcb69;border-radius:25px;padding:clamp(13px,3vw,28px);width:min(590px,94vw);max-height:90vh;overflow:auto;text-align:center;box-shadow:0 18px 42px #0007}h1{font-size:clamp(21px,4vw,32px);margin:0 0 12px;color:#ffdf87}p{line-height:1.65;margin:6px 0 12px}.go{padding:13px 40px;background:#ffcd58;border:0;border-radius:16px;color:#35251c;font-size:19px;font-weight:1000;cursor:pointer}#orientation{position:absolute;bottom:5px;left:50%;transform:translateX(-50%);font-size:10px;color:#163b4a99;pointer-events:none}@media (orientation:portrait){#rhythmPanel{width:43vw;bottom:117px}#mash,#rhythm{width:43vw}#hud{min-width:80vw}} 
+
+#rhythmPanel{height:98px;width:min(43vw,410px);bottom:clamp(95px,23vh,145px);padding:8px 10px}
+#track{height:53px;overflow:hidden;background:linear-gradient(#172e51,#263f65);border:2px solid #9dc9ee}
+#sweet{left:15%;width:10%;background:#83f7ac45;border-left:4px solid #cbffbb;border-right:3px solid #cbffbb}
+#dot{display:none}
+#notes{position:absolute;inset:0;pointer-events:none}
+.note{position:absolute;top:11px;width:27px;height:27px;border-radius:50%;background:#ff785b;border:4px solid #fff2aa;box-shadow:0 0 0 3px #e45546,0 0 12px #ff9d65}
+#rhythmHint{font-size:clamp(10px,1.35vw,13px);margin-top:4px}
+#powers{margin-top:6px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.powerUnit{font-size:clamp(10px,1.4vw,13px);text-align:left}
+.powerTrack{height:9px;border:1px solid #a8c8e0;border-radius:8px;background:#263955;overflow:hidden}
+.powerFill{height:100%;width:0;background:#ffc563;transition:width .07s}
+#powerTotal{color:#fff3ad;font-size:clamp(14px,2vw,20px);margin-top:4px}
+#hud{min-width:min(74vw,680px)}
+#mash:active{filter:brightness(1.35)}
+#mash{transition:background .07s;box-shadow:0 7px 0 #623e28,0 12px 21px #0003}
+@media(orientation:portrait){#rhythmPanel{width:47vw;bottom:125px}#hud{min-width:94vw}}
+.bracket{line-height:1.9;margin:10px auto;padding:10px;background:#11283d;border-radius:10px;font-size:clamp(12px,1.9vw,16px)}
+
+/* v16: guard against mobile viewport/rotation layout split */
+html,body{position:fixed!important;inset:0!important;min-width:0!important;min-height:0!important;width:100%!important;height:100%!important;overflow:hidden!important;contain:layout size!important;overscroll-behavior:none!important}
+#game{position:fixed!important;inset:0!important;display:block!important;width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;z-index:0!important}
+#hud{z-index:3;box-sizing:border-box;width:min(74vw,680px)!important;min-width:0!important;max-width:calc(100vw - 18px)!important;left:50%!important;right:auto!important;top:5px!important;transform:translateX(-50%)!important;overflow:hidden!important;padding:4px 9px!important}
+#powers{gap:4px!important;margin-top:3px!important}#powerTotal{font-size:clamp(10px,1.5vw,16px)!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#rhythmPanel{z-index:2;max-width:43vw!important;box-sizing:border-box}#bottom{z-index:3;box-sizing:border-box}
+#overlay{position:fixed!important;inset:0!important;z-index:10!important}
+@media(max-height:420px){#hud{top:2px!important;padding:2px 7px!important}#status{font-size:clamp(10px,1.3vw,15px)}#powerTotal{margin-top:1px!important}#rhythmPanel{bottom:85px!important;height:77px!important}#track{height:40px!important}.note{top:4px!important}}
+</style></head><body><canvas id="game"></canvas><div id="finalCountdown" aria-live="off" style="position:fixed;top:35%;left:50%;transform:translate(-50%,-50%);z-index:3;pointer-events:none;display:none;font:1000 clamp(56px,16vh,128px) system-ui;color:#ffe978;text-shadow:0 4px 0 #a32929,0 0 30px #e5ac21,0 7px 12px #000b;text-align:center"></div><div id="hud"><div id="status">準決勝①　まるねこ vs もふねこ</div><div id="meter"><div id="needle"></div></div><div id="powers"><div class="powerUnit">✊連打 <span id="mashValue">0</span><div class="powerTrack"><div class="powerFill" id="mashFill"></div></div></div><div class="powerUnit">🎵リズム <span id="rhythmValue">0</span><div class="powerTrack"><div class="powerFill" id="rhythmFill" style="background:#aa92ff"></div></div></div><div class="powerUnit">💪自分 <span id="blueValue">0</span><div class="powerTrack"><div class="powerFill" id="blueFill" style="background:#57d7fc"></div></div></div></div><div id="powerTotal">まるねこ 0 vs CPU 0</div></div><div id="feedback"></div><div id="rhythmPanel"><div id="track"><div id="sweet"></div><div id="notes"></div></div><div id="rhythmHint">赤い音符が左の緑ラインに重なったら押す！</div></div><div id="bottom"><button id="mash">✊ 連打！<small style="display:block;font-size:11px">何度も押す</small></button><button id="rhythm">🎵 リズム！<small style="display:block;font-size:11px">タイミングよく押す</small></button></div><div id="orientation">スマホ横画面推奨</div><div id="overlay"><div id="panel"><h1>🐱 第3競技 ニャンコ綱引き！</h1><p>4匹による1対1トーナメント！ 準決勝① まるねこ vs もふねこ／準決勝② でぶねこ vs ダックス</p><p>左下は連打を続け、右側は<b>速さが変わる音符</b>をタイミングよく叩こう。見逃し・空打ちでリズムパワーが大幅に減る！<br>成功で大きな追加パワー、失敗すると少しだけパワーダウン。</p><p>準決勝に勝ったらCPU同士の準決勝結果を発表し、決勝へ進出。<br>1試合30秒、先に綱を引ききるか終了時に優勢な方が勝ち。PCは連打：スペース・リズム：J。</p><button class="go" id="start">試合開始！</button></div></div><script>const SELECTED = __PLAYER_ID__;
+function nySE(type){try{window.parent.postMessage({source:'nyanko-sfx',type},'*')}catch(e){}}
+
+
+const DATA={"standard_idle": "assets/5515e9179d1437648fea.webp", "power_idle": "assets/ae421fe68688eec5453b.webp", "dog_idle": "assets/40296cbd83827e0eb9c1.webp", "fluff_idle": "assets/88a49510d1526f5c7bd7.webp"};Object.assign(DATA,{standard_tug:'assets/1e65c0b125c9d32ff763.webp',power_tug:'assets/c729719252327e505abf.webp',dog_tug:'assets/baf939f89d869a56b615.webp',fluff_tug:'assets/84a5082c6b974d6ae74f.webp',standard_tug2:'assets/7e071615afea085bfe15.webp'});;const sprites={};for(const [k,v] of Object.entries(DATA)){let i=new Image();i.src=v;sprites[k]=i}
+const c=document.getElementById('game'),g=c.getContext('2d'),
+status=document.getElementById('status'),needle=document.getElementById('needle'),
+feedback=document.getElementById('feedback'),overlay=document.getElementById('overlay'),
+panel=document.getElementById('panel'),notesEl=document.getElementById('notes');
+const ui={mashValue:document.getElementById('mashValue'),rhythmValue:document.getElementById('rhythmValue'),
+blueValue:document.getElementById('blueValue'),mashFill:document.getElementById('mashFill'),
+rhythmFill:document.getElementById('rhythmFill'),blueFill:document.getElementById('blueFill'),
+total:document.getElementById('powerTotal')};
+let W=0,H=0,dpr=1,last=0,t=0,round=1,wins=[0,0],shift=0,mashPower=0,rhythmPower=0,
+penalty=0,running=false,transition=false,elapsed=0,hitCount=0,missCount=0,particles=[],
+notes=[],nextNoteAt=0,lastMashAt=-100,feedbackEnd=0,pressFlash=0,streak=0,stumble=0,beatStep=0;
+let opponent=0,finalOpponent=null,semiWinner=null,champion=null,cpuPower=83;
+const names=['まるねこ','でぶねこ','ダックス','もふねこ'];
+const keys=['standard_tug','power_tug','dog_tug','fluff_tug'];const playerId=SELECTED;const REMOTE_ID=__REMOTE_ID__;const firstRival=REMOTE_ID>=0?REMOTE_ID:[3,2,1,0][playerId];const otherPair=[0,1,2,3].filter(id=>id!==playerId&&id!==firstRival);
+function cpuSemi(){// Strong, style-dependent CPU-versus-CPU semifinal
+ const power=86+Math.random()*24,dog=86+Math.random()*24;
+ return power>=dog?1:2;
+}
+const roundSeconds=36,limit=390,travelTime=1.85,beatInterval=.88;
+let netSpectator=false,remoteMash=0,remoteRhythm=0,remotePenalty=0,remoteStreak=0;
+let remoteNotes=[],remoteLastMash=-100,netSeq=0,lastNetPush=0;
+function pushNetState(){if(netSpectator)return;const now=performance.now();if(now-lastNetPush<85)return;lastNetPush=now;window.parent.postMessage({source:'nyanko-net-frame',type:'snapshot',sport:2,state:{seq:++netSeq,elapsed,shift,round,opponent,playerId,running,notes:notes.map(n=>({at:n.at,judged:n.judged})),remoteMash,remoteRhythm,remotePenalty,remoteStreak,mashPower,rhythmPower,penalty,streak}},'*')}
+window.addEventListener('message',e=>{const d=e.data;if(d?.source!=='nyanko-net')return;
+ if(d.type==='input'&&d.input&&REMOTE_ID>=0&&round===1&&opponent===REMOTE_ID&&running){
+ const now=performance.now()/1000;
+ if(d.input.mash&&now-remoteLastMash>.055){remoteLastMash=now;remoteMash=clamp(remoteMash+6.1,0,95)}
+ if(d.input.rhythm){let n=notes.filter(n=>!n.remoteJudged).sort((a,b)=>Math.abs(a.at-elapsed)-Math.abs(b.at-elapsed))[0];if(n){let delta=Math.abs(n.at-elapsed);if(delta<=.115){n.remoteJudged=true;remoteStreak++;remoteRhythm=clamp(remoteRhythm+17,0,92)}else if(delta<=.22){n.remoteJudged=true;remoteStreak++;remoteRhythm=clamp(remoteRhythm+10,0,92)}else{remotePenalty=clamp(remotePenalty+8,0,45);remoteStreak=0}}}
+ }
+ if(d.type==='snapshot'&&d.state){netSpectator=true;const q=d.state;elapsed=q.elapsed;shift=q.shift;round=q.round;opponent=q.opponent;running=false;overlay.style.display=q.running?'none':'flex';remoteMash=q.remoteMash||0;remoteRhythm=q.remoteRhythm||0;mashPower=q.mashPower||0;rhythmPower=q.rhythmPower||0;penalty=q.penalty||0;notes=(q.notes||[]).map(n=>({...n}));t=elapsed;renderHud()}
+});
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function resize(){
+ const box=c.getBoundingClientRect();
+ const w=Math.max(1,Math.round(box.width||document.documentElement.clientWidth||innerWidth));
+ const h=Math.max(1,Math.round(box.height||document.documentElement.clientHeight||innerHeight));
+ const ratio=Math.min(devicePixelRatio||1,2);
+ if(W!==w||H!==h||dpr!==ratio||c.width!==Math.round(w*ratio)||c.height!==Math.round(h*ratio)){
+ W=w;H=h;dpr=ratio;c.width=Math.round(W*dpr);c.height=Math.round(H*dpr);g.setTransform(dpr,0,0,dpr,0,0);
+ }
+}
+addEventListener('resize',resize);addEventListener('orientationchange',()=>requestAnimationFrame(resize));
+if(window.visualViewport)visualViewport.addEventListener('resize',resize);
+if(typeof ResizeObserver!=='undefined')new ResizeObserver(resize).observe(c);
+resize();
+function scheduleNotes(){while(nextNoteAt<elapsed+travelTime+1){notes.push({at:nextNoteAt,judged:false});beatStep++;const speedup=elapsed>20?.84:elapsed>10?.93:1;const pattern=[1,1,.78,1.15,.88,1.05,.79,1.10];nextNoteAt+=beatInterval*speedup*pattern[beatStep%pattern.length]}}
+function startRound(){window.parent.postMessage({source:'nyanko-uploaded-audio',type:'airhorn'},'*');
+ shift=0;elapsed=0;mashPower=0;rhythmPower=0;penalty=0;hitCount=0;missCount=0;streak=0;stumble=0;beatStep=0;
+ cpuPower=(opponent===3?76:opponent===1?101:108);
+ remoteMash=remoteRhythm=remotePenalty=remoteStreak=0;remoteLastMash=-100;remoteNotes=[];notes=[];nextNoteAt=2.0;lastMashAt=-100;particles=[];running=true;transition=false;
+ overlay.style.display='none';feedback.style.opacity='0';last=performance.now();scheduleNotes();renderHud();
+}
+function start(){wins=[0,0];round=1;opponent=firstRival;finalOpponent=null;semiWinner=null;champion=null;t=0;startRound()}
+function feedbackText(txt,good){feedback.textContent=txt;feedback.style.color=good?'#d8ff76':'#ffb2a5';feedback.style.opacity='1';feedbackEnd=t+.65}
+function mash(){
+ if(!running)return;nySE('mash');
+ const now=performance.now()/1000;
+ if(now-lastMashAt<.055)return;lastMashAt=now;
+ mashPower=clamp(mashPower+6.1,0,95);
+ pressFlash=.18;
+ for(let i=0;i<5;i++)particles.push({x:W*.35,y:H*.57,vx:(Math.random()-.5)*170,vy:-60-Math.random()*100,life:.45,color:'#fff2a5'});
+ renderHud();
+}
+function rhythm(){
+ if(!running)return;nySE('rhythmTap');
+ const pending=notes.filter(n=>!n.judged).sort((a,b)=>Math.abs(a.at-elapsed)-Math.abs(b.at-elapsed))[0];
+ if(!pending){penalizeRhythm('空打ち');return}
+ const delta=Math.abs(elapsed-pending.at);
+ if(delta<=.095){pending.judged=true;streak++;stumble=Math.max(0,stumble-.25);rhythmPower=clamp(rhythmPower+17+Math.min(streak,5)*.8,0,92);hitCount++;nySE('perfect');feedbackText('PERFECT! '+streak+'連続',true)}
+ else if(delta<=.19){pending.judged=true;streak++;stumble=Math.max(0,stumble-.15);rhythmPower=clamp(rhythmPower+10+Math.min(streak,5)*.5,0,92);hitCount++;nySE('good');feedbackText('GOOD! '+streak+'連続',true)}
+ else{penalizeRhythm('MISS!')}
+ renderHud();
+}
+function penalizeRhythm(label){nySE('miss');streak=0;rhythmPower=Math.max(0,rhythmPower-17);penalty=clamp(penalty+11,0,45);stumble=clamp(stumble+.75,0,2.8);missCount++;feedbackText(label+' パワーダウン',false)}
+const bind=(id,fn)=>{let el=document.getElementById(id);el.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();fn()},{passive:false});el.addEventListener('contextmenu',e=>e.preventDefault())};
+bind('mash',mash);bind('rhythm',rhythm);
+addEventListener('keydown',e=>{if(e.repeat)return;const k=e.key.toLowerCase();if(k===' '){e.preventDefault();mash()}if(k==='j')rhythm()});
+document.getElementById('start').onclick=start;
+function results(win){
+ running=false;transition=true;
+ const didWin=win===0;
+ if(round===1){
+   window.parent.postMessage({source:'nyanko-uploaded-audio',type:'cheer'},'*');
+   semiWinner=didWin?playerId:firstRival;
+   const a=otherPair[0],b=otherPair[1];
+   const rating=[88,108,112,78];
+   finalOpponent=(rating[a]+Math.random()*28>=rating[b]+Math.random()*28)?a:b;
+   const otherLoser=otherPair.find(id=>id!==finalOpponent);
+   if(didWin){
+     panel.innerHTML=`<h1>🎉 決勝進出！</h1><p>${names[playerId]} vs ${names[finalOpponent]}</p><p>準決勝②：${names[finalOpponent]} が勝利</p><button class="go" id="again">決勝へ ▶</button>`;
+   }else{
+     // Player loses their semi: record fourth/third via the other semifinal loser.
+     const third=Math.random()>.5?playerId:otherLoser, fourth=third===playerId?otherLoser:playerId;
+     // Simulate the CPU-only final independently when neither human reached it.
+     const strength=[88,108,112,78];
+     const finalist1=semiWinner,finalist2=finalOpponent;
+     const p1=strength[finalist1]+Math.random()*30;
+     const p2=strength[finalist2]+Math.random()*30;
+     const order=p1>=p2?[finalist1,finalist2,third,fourth]:[finalist2,finalist1,third,fourth];
+     window.parent.postMessage({source:'nyanko-event',type:'complete',event:2,order},'*');
+     panel.innerHTML=`<h1>準決勝敗退</h1><p>${names[semiWinner]} と ${names[finalOpponent]} が決勝進出</p><p>大会の順位を確定しました。</p><button class="go" id="again">再挑戦</button>`;
+   }
+ }else{
+   const champion=didWin?playerId:opponent,runnerUp=didWin?opponent:playerId;
+   const otherLoser=otherPair.find(id=>id!==opponent);
+   const third=Math.random()>.5?firstRival:otherLoser,fourth=third===firstRival?otherLoser:firstRival;
+   const order=[champion,runnerUp,third,fourth];
+   window.parent.postMessage({source:'nyanko-event',type:'complete',event:2,order},'*');
+   panel.innerHTML=`<h1>${didWin?'🏆 優勝！':'決勝終了！'}</h1><p>優勝：${names[champion]}</p><button class="go" id="again">再挑戦</button>`;
+ }
+ overlay.style.display='flex';
+ document.getElementById('again').onclick=round===1&&didWin?()=>{round=2;opponent=finalOpponent;startRound()}:start;
+}
+function forces(){
+ // Balanced for a longer tug-of-war round with stronger rapid tapping influence.
+ const cpu=opponent===REMOTE_ID&&round===1?Math.max(0,(18+remoteMash*.88+remoteRhythm*.72-remotePenalty)):cpuPower+4+Math.sin(t*2.0+opponent)*7+Math.sin(t*.72+opponent*2)*5+(elapsed>12?4:0);
+ const your=(18+mashPower*.88+rhythmPower*.72-penalty)*(1-Math.min(.28,stumble*.09));
+ return {left:Math.max(0,your),right:cpu,ally:0,cpu};
+}
+function renderHud(){
+ const remain=Math.max(0,Math.ceil(roundSeconds-elapsed));
+ const countdown=document.getElementById('finalCountdown');
+ if(running&&remain<=10&&remain>0){countdown.style.display='block';countdown.textContent=remain;countdown.style.color=remain<=3?'#ff665d':'#ffe978';}else countdown.style.display='none';
+ const f=forces();
+ ui.mashValue.textContent=Math.round(mashPower);
+ ui.rhythmValue.textContent=Math.round(rhythmPower);
+ ui.blueValue.textContent=Math.round(f.left);
+ ui.mashFill.style.width=`${mashPower/90*100}%`;
+ ui.rhythmFill.style.width=`${rhythmPower/92*100}%`;
+ ui.blueFill.style.width=`${Math.min(100,f.left/145*100)}%`;
+ ui.total.textContent=`🔵 ${names[playerId]} ${Math.round(f.left)}　vs　🔴 ${names[opponent]} ${Math.round(f.right)}　（${streak}連続・ミス減点 ${Math.round(penalty)}）`;
+ needle.style.left=`${50+shift/limit*48}%`;
+ status.textContent=`${round===1?'準決勝①':'決勝'}　${names[playerId]} vs ${names[opponent]}　残り ${Math.ceil(Math.max(0,roundSeconds-elapsed))}秒`;
+ const rail=document.getElementById('track').clientWidth;
+ const startX=rail*.95,hitX=rail*.20;
+ notesEl.innerHTML=notes.filter(n=>!n.judged&&n.at>=elapsed-.3&&n.at<=elapsed+travelTime)
+ .map(n=>`<div class="note" style="left:${hitX+(n.at-elapsed)/travelTime*(startX-hitX)-13}px"></div>`).join('');
+}
+function update(dt){
+ t+=dt;elapsed+=dt;pressFlash=Math.max(0,pressFlash-dt);
+ mashPower=Math.max(0,mashPower-dt*16.5);remoteMash=Math.max(0,remoteMash-dt*16.5);remoteRhythm=Math.max(0,remoteRhythm-dt*19);remotePenalty=Math.max(0,remotePenalty-dt*5.5);
+ rhythmPower=Math.max(0,rhythmPower-dt*19);
+ penalty=Math.max(0,penalty-dt*5.5);stumble=Math.max(0,stumble-dt*.48);
+ scheduleNotes();
+ for(const n of notes){if(!n.judged&&elapsed>n.at+.205){n.judged=true;penalizeRhythm('見逃し')}}
+ notes=notes.filter(n=>!n.judged||n.at>elapsed-1);
+ const f=forces();
+ pushNetState();
+ // Substantial catch-up window, no instant CPU win.
+ shift=clamp(shift+(f.right-f.left)*dt*.83-shift*dt*.065,-limit-12,limit+12);
+ if(elapsed>=roundSeconds){results(shift<=0?0:1);return}
+ if(shift<=-limit){results(0);return}
+ if(shift>=limit){results(1);return}
+ for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;if(p.life<=0)particles.splice(i,1)}
+ if(t>feedbackEnd)feedback.style.opacity='0';
+ document.getElementById('mash').style.filter=pressFlash>0?'brightness(1.3)':'';
+ renderHud();
+}
+function drawCat(key,x,y,w,flip=false){const im=sprites[key];g.save();g.translate(x,y);if(flip)g.scale(-1,1);if(im?.complete&&im.naturalWidth)g.drawImage(im,-w/2,-w*.93,w,w*.93);else{g.font=w*.7+'px serif';g.fillText('🐱',-w*.3,-w*.25)}g.restore()}
+function draw(){const sx=W/1050,sy=H/560,u=Math.min(sx,sy);const ground=H*.75;let sky=g.createLinearGradient(0,0,0,H);sky.addColorStop(0,'#7ad2fb');sky.addColorStop(.7,'#d6f1d4');sky.addColorStop(1,'#91b767');g.fillStyle=sky;g.fillRect(0,0,W,H);for(let i=0;i<6;i++){const x=W*(i/5)+Math.sin(i*5)*30;g.fillStyle='#8fb3a0';g.fillRect(x-40,H*.30,70,H*.23);g.fillStyle='#d9ad85';g.fillRect(x-25,H*.36,40,H*.17);g.fillStyle='#4d9c78';g.beginPath();g.arc(x,H*.27,30+10*u,0,Math.PI*2);g.fill()}g.fillStyle='#a0c978';g.fillRect(0,ground-32*u,W,H-ground+32*u);g.fillStyle='#dfc18c';g.fillRect(0,ground,W,H-ground);for(let i=0;i<19;i++){let y=ground+(i/18)*(H-ground);g.strokeStyle='#b79568aa';g.beginPath();g.moveTo(0,y);g.lineTo(W,y);g.stroke()}
+const leftTeamX=W*.27 + shift*u*.14,rightTeamX=W*.73 + shift*u*.14,ropeY=ground-52*u;g.lineWidth=16*u;g.strokeStyle='#634221';g.beginPath();g.moveTo(W*.06+shift*u*.14,ropeY);g.lineTo(W*.94+shift*u*.14,ropeY);g.stroke();g.lineWidth=9*u;g.strokeStyle='#deb86f';g.beginPath();g.moveTo(W*.06+shift*u*.14,ropeY-2*u);g.lineTo(W*.94+shift*u*.14,ropeY-2*u);g.stroke();for(let i=0;i<30;i++){let x=W*.07+shift*u*.14+i*W*.028;g.strokeStyle='#987247';g.lineWidth=2*u;g.beginPath();g.moveTo(x,ropeY-10*u);g.lineTo(x+8*u,ropeY+6*u);g.stroke()}let flagX=W*.5+shift*u*.7;g.strokeStyle='#512f32';g.lineWidth=4*u;g.beginPath();g.moveTo(W*.5,ground-77*u);g.lineTo(W*.5,ground+25*u);g.stroke();g.fillStyle='#e6414e';g.fillRect(flagX-6*u,ropeY-24*u,12*u,34*u);g.fillStyle='#ffee7a';g.fillRect(flagX-4*u,ropeY-21*u,8*u,13*u);
+const cw=clamp(156*u,56,198);const leftKey=(Math.floor(t*8)%2===0)?'standard_tug':'standard_tug2';drawCat((playerId===0?leftKey:keys[playerId]),leftTeamX+(Math.floor(t*8)%2)*5*u,ropeY+(34+(Math.floor(t*8)%2)*2)*u,cw*1.18,true);drawCat(keys[opponent],rightTeamX,ropeY+34*u,cw*1.18,false);
+for(const p of particles){g.globalAlpha=Math.min(1,p.life*3);g.fillStyle=p.color;g.beginPath();g.arc(p.x,p.y,3*u,0,Math.PI*2);g.fill()}g.globalAlpha=1;g.font=`bold ${Math.max(13,24*u)}px system-ui`;g.fillStyle='#1459a2';g.textAlign='center';g.fillText(names[playerId]+'（あなた）',W*.27,ground+35*u);g.fillStyle='#b54732';g.fillText(names[opponent]+'（CPU）',W*.73,ground+35*u);}
+function loop(now){if(Math.abs(c.getBoundingClientRect().width-W)>1||Math.abs(c.getBoundingClientRect().height-H)>1)resize();let dt=last?Math.min((now-last)/1000,.04):.016;last=now;if(running)update(dt);draw();requestAnimationFrame(loop)}requestAnimationFrame(loop);
+</script>
+<script>window.addEventListener('message',e=>{if(e.data?.source==='nyanko-hub'&&e.data.type==='start'){if(typeof start==='function')start()}});window.parent.postMessage({source:'nyanko-event',type:'ready'},'*');</script></body></html>
